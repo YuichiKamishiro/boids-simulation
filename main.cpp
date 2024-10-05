@@ -3,25 +3,25 @@
 #include <SFML/Window/Window.hpp>
 
 #include <array>
-#include <chrono>
 #include <cstdlib>
-#include <thread>
-#include <vector>
-#include <iostream>
 #include <ctime>
+#include <iostream>
+#include <cmath>
 
 using namespace sf; 
 
-const int BOIDS_COUNT = 30;
+const int BOIDS_COUNT = 60;
 // in pixels
-const int MAX_RANGE = 40;
+const int MAX_RANGE = 100;
 
-const float TURNFACTOR = 0.2;
-const float COHESION_FACTOR = 0.0005;
+const float TURNFACTOR = 0.5;
+const float AVOID_FACTOR = 0.2;
+const float MATCHING_FACTOR = 0.05;
+const float CENTERING_FACTOR = 0.009; // centering in 1 floak
 
 struct Boid {
-    int x = 0, y = 0; // position
-    int vx = 0, vy = 0; // velocity 
+    float x = 0, y = 0; // position
+    float vx = 0, vy = 0; // velocity 
 
     CircleShape shape;
 
@@ -42,13 +42,13 @@ void spawnBoids(std::array<Boid, BOIDS_COUNT> &boids) {
 }
 
 void checkBorders(Boid &boid) {
-    if (boid.x < 0)
+    if (boid.x < 20)
         boid.vx = boid.vx + TURNFACTOR;
-    if (boid.x > 500)
+    if (boid.x > 480)
         boid.vx = boid.vx - TURNFACTOR;
-    if (boid.y > 500)
+    if (boid.y > 480)
         boid.vy = boid.vy - TURNFACTOR;
-    if (boid.y < 0)
+    if (boid.y < 20)
         boid.vy = boid.vy + TURNFACTOR;
 }
 
@@ -84,14 +84,14 @@ int main() {
                     int distance_x = boid.x - otherBoid.x;
                     int distance_y = boid.y - otherBoid.y;
 
-                    if (distance_x < MAX_RANGE && distance_y < MAX_RANGE) {
-                        int sqr_d = distance_x*distance_x + distance_y*distance_y;
+                    if (std::abs(distance_x) < 40 && abs(distance_y) < 40) {
+                        int squared_distance = distance_x*distance_x + distance_y*distance_y;
 
-                        if (sqr_d < 8*8) {                            
+                        if (squared_distance <= 10*10) {                            
                             // distance
                             close_dx += boid.x - otherBoid.x;
                             close_dy += boid.y - otherBoid.y;
-                        } else if(sqr_d < MAX_RANGE*MAX_RANGE){
+                        } else if(squared_distance < 40*40){
                             // pos
                             avg_x += otherBoid.x;
                             avg_y += otherBoid.y;
@@ -101,7 +101,6 @@ int main() {
 
                             flock_boids += 1;
                         }
-
                     }
                 }
             }
@@ -112,45 +111,42 @@ int main() {
                 avg_vy /= flock_boids;
 
                 boid.vx = (boid.vx + 
-                   (avg_x - boid.x) * 0.0005 + 
-                   (avg_vx - boid.vx)* 0.05);
+                   (avg_x - boid.x) * CENTERING_FACTOR + 
+                   (avg_vx - boid.vx)* MATCHING_FACTOR);
 
                 boid.vy = (boid.vy + 
-                   (avg_y - boid.y)*0.0005 + 
-                   (avg_vy - boid.vy)*0.05);
+                   (avg_y - boid.y)*CENTERING_FACTOR + 
+                   (avg_vy - boid.vy)*MATCHING_FACTOR);
 
             }
-            boid.vx = boid.vx + (close_dx*0.05);
-            boid.vy = boid.vy + (close_dy*0.05);
+            boid.vx = boid.vx + (close_dx*AVOID_FACTOR);
+            boid.vy = boid.vy + (close_dy*AVOID_FACTOR);
 
-            if (boid.vx > 6) {
-                boid.vx = 6;
+            checkBorders(boid);
+
+            float speed = sqrt(boid.vx*boid.vx + boid.vy*boid.vy);
+            if (speed < 1) {
+                boid.vx = (boid.vx/speed)*1;
+                boid.vy = (boid.vy/speed)*1;
             }
-            if (boid.vy > 6) {
-                boid.vy = 6;
-            }
-            if (boid.vx < 3) {
-                boid.vx = 3;
-            }
-            if (boid.vy < 3) {
-                boid.vy = 3;
+
+            if (speed > 6) {
+                boid.vx = (boid.vx/speed)*6;
+                boid.vy = (boid.vy/speed)*6;
             }
 
             boid.x = boid.x + boid.vx;
             boid.y = boid.y + boid.vy;
 
             boid.shape.setPosition(boid.x, boid.y);
-            // checking if boid within screen
-            checkBorders(boid);
         }
-
 
 
         window.clear();
 
         for(auto &boid : boids) {
             window.draw(boid.shape);
-            //std::cout << boid.x << " " << boid.y << "\n";
+            std::cout << boid.vx << " " << boid.vy << "\n";
         }
         window.setVerticalSyncEnabled(true);
         //std::this_thread::sleep_for(std::chrono::seconds(1));
