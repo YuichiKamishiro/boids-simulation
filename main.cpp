@@ -5,22 +5,22 @@
 
 using namespace sf; 
 
-const int BOIDS_COUNT = 200;
+const int kBoidsCount = 200;
 
-const int MAX_RANGE = 100;
-const int SHAPE_RADIUS = 3;
-const int MIN_RANGE = SHAPE_RADIUS + 1;
+const int kMaxDetectionRange = 200;
+const int kShapeRadius = 3;
+const int kMinDetectionRange = kShapeRadius + 1;
 
-const float TURNFACTOR = 0.5;
-const float AVOID_FACTOR = 1;
-const float MATCHING_FACTOR = 0.05;
-const float CENTERING_FACTOR = 0.005;
+const float kTurnFactor = 0.5;
+const float kAvoidFactor = 1;
+const float kMatchingFactor = 0.05;
+const float kCentringFactor = 0.005;
 
 const int SCREEN_WIDTH = 1200;
 const int SCREEN_HEIGHT = 700;
 
-const int MIN_SPEED = 3;
-const int MAX_SPEED = 8;
+const int kMinSpeed = 3;
+const int kMaxSpeed = 8;
 
 
 struct Boid {
@@ -31,40 +31,44 @@ struct Boid {
 
     Boid(int x, int y, int vx, int vy): 
         x(x), y(y), vx(vx), vy(vy),
-        shape(SHAPE_RADIUS)
+        shape(kShapeRadius)
     {
-        shape.setFillColor(Color::Red);
+        shape.setFillColor(Color::White);
         shape.setPosition(x, y);
     }
     Boid() = default;
 };
 
-void spawnBoids(std::array<Boid, BOIDS_COUNT> &boids) {
-    for(int i = 0;i < BOIDS_COUNT; i++) {
-        int x = rand() % SCREEN_WIDTH + 0;
-        int y = rand() % SCREEN_HEIGHT + 0;
-        int vx = rand() % MAX_SPEED + MIN_SPEED;
-        int vy = rand() % MAX_SPEED +  MIN_SPEED;
-        boids[i] = Boid(x, y, vx, vy);
+void spawnBoids(std::array<Boid, kBoidsCount> &boids) {
+    for(auto &boid : boids) {
+        boid = Boid {
+            rand() % SCREEN_WIDTH + 0, 
+            rand() % SCREEN_HEIGHT + 0,
+            rand() % kMaxSpeed + kMinSpeed,
+            rand() % kMaxSpeed +  kMinSpeed,
+        };
     }
 }
 
-void checkBorders(Boid &boid) {
-    if (boid.x < 0)
-        boid.vx = boid.vx + TURNFACTOR;
-    if (boid.x > SCREEN_WIDTH)
-        boid.vx = boid.vx - TURNFACTOR;
-    if (boid.y > SCREEN_HEIGHT)
-        boid.vy = boid.vy - TURNFACTOR;
-    if (boid.y < 0)
-        boid.vy = boid.vy + TURNFACTOR;
+void checkBorders(Boid& boid) {
+    if (boid.x < 0) {
+        boid.vx += kTurnFactor;
+    } else if (boid.x > SCREEN_WIDTH) {
+        boid.vx -= kTurnFactor;
+    }
+
+    if (boid.y < 0) {
+        boid.vy += kTurnFactor;
+    } else if (boid.y > SCREEN_HEIGHT) {
+        boid.vy -= kTurnFactor;
+    }
 }
 
 
 int main() {
     srand(time(NULL));
 
-    std::array<Boid, BOIDS_COUNT> boids;
+    std::array<Boid, kBoidsCount> boids;
     spawnBoids(boids);
 
     RenderWindow window(VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Boids C++");
@@ -77,7 +81,7 @@ int main() {
             }
         }
 
-        for (int i = 0; i < BOIDS_COUNT; i++) {
+        for (int i = 0; i < kBoidsCount; i++) {
             auto &boid = boids[i];
             
             int avg_x = 0; int avg_y = 0;
@@ -86,20 +90,21 @@ int main() {
             int close_dx = 0;
             int close_dy = 0;
 
-            for (int j = 0; j < BOIDS_COUNT; j++) {
+            for (int j = 0; j < kBoidsCount; j++) {
                 if (i != j) {
                     auto &otherBoid = boids[j];
                     int distance_x = boid.x - otherBoid.x;
                     int distance_y = boid.y - otherBoid.y;
-                    if (std::abs(distance_x) < MAX_RANGE && std::abs(distance_y) < MAX_RANGE) {
-                        if (std::abs(distance_x) <= MIN_RANGE && std::abs(distance_y) <= MIN_RANGE) {                            
+
+                    int distance = sqrt(pow(distance_x, 2) + pow(distance_y, 2));
+
+                    if (distance < kMaxDetectionRange) {
+                        if (distance <= kMinDetectionRange) {                            
                             close_dx += boid.x - otherBoid.x;
                             close_dy += boid.y - otherBoid.y;
                         } else {
-                            // pos
                             avg_x += otherBoid.x;
                             avg_y += otherBoid.y;
-                            // vel
                             avg_vx += otherBoid.vx;
                             avg_vy += otherBoid.vy;
                             flock_boids += 1;
@@ -114,18 +119,18 @@ int main() {
                 avg_vy /= flock_boids;
 
                 boid.vx = (boid.vx + 
-                   (avg_x - boid.x) * CENTERING_FACTOR + 
-                   (avg_vx - boid.vx)* MATCHING_FACTOR);
+                   (avg_x - boid.x) * kCentringFactor + 
+                   (avg_vx - boid.vx)* kMatchingFactor);
 
                 boid.vy = (boid.vy + 
-                   (avg_y - boid.y)*CENTERING_FACTOR + 
-                   (avg_vy - boid.vy)*MATCHING_FACTOR);
+                   (avg_y - boid.y)*kCentringFactor + 
+                   (avg_vy - boid.vy)*kMatchingFactor);
 
             }
-            boid.vx = boid.vx + (close_dx*AVOID_FACTOR);
-            boid.vy = boid.vy + (close_dy*AVOID_FACTOR);
+            boid.vx = boid.vx + (close_dx*kAvoidFactor);
+            boid.vy = boid.vy + (close_dy*kAvoidFactor);
 
-            float speed = sqrt(boid.vx*boid.vx + boid.vy*boid.vy);
+            float speed = sqrt(pow(boid.vx, 2) + pow(boid.vy, 2));
             if (speed < 1) {
                 boid.vx = (boid.vx/speed)*1;
                 boid.vy = (boid.vy/speed)*1;
