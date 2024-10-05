@@ -1,33 +1,37 @@
 #include <SFML/Graphics.hpp>
-#include <SFML/Graphics/CircleShape.hpp>
-#include <SFML/Window/Window.hpp>
 
 #include <array>
-#include <cstdlib>
-#include <ctime>
-#include <iostream>
 #include <cmath>
 
 using namespace sf; 
 
-const int BOIDS_COUNT = 60;
-// in pixels
+const int BOIDS_COUNT = 200;
+
 const int MAX_RANGE = 100;
+const int SHAPE_RADIUS = 3;
+const int MIN_RANGE = SHAPE_RADIUS + 1;
 
 const float TURNFACTOR = 0.5;
-const float AVOID_FACTOR = 0.2;
+const float AVOID_FACTOR = 1;
 const float MATCHING_FACTOR = 0.05;
-const float CENTERING_FACTOR = 0.009; // centering in 1 floak
+const float CENTERING_FACTOR = 0.005;
+
+const int SCREEN_WIDTH = 1200;
+const int SCREEN_HEIGHT = 700;
+
+const int MIN_SPEED = 3;
+const int MAX_SPEED = 8;
+
 
 struct Boid {
-    float x = 0, y = 0; // position
-    float vx = 0, vy = 0; // velocity 
+    float x = 0, y = 0;
+    float vx = 0, vy = 0; 
 
     CircleShape shape;
 
     Boid(int x, int y, int vx, int vy): 
         x(x), y(y), vx(vx), vy(vy),
-        shape(5)
+        shape(SHAPE_RADIUS)
     {
         shape.setFillColor(Color::Red);
         shape.setPosition(x, y);
@@ -37,18 +41,22 @@ struct Boid {
 
 void spawnBoids(std::array<Boid, BOIDS_COUNT> &boids) {
     for(int i = 0;i < BOIDS_COUNT; i++) {
-        boids[i] = Boid(rand() % 450 + 50, rand() % 450 + 50, rand() % 6 + 3, rand() % 6 + 3);
+        int x = rand() % SCREEN_WIDTH + 0;
+        int y = rand() % SCREEN_HEIGHT + 0;
+        int vx = rand() % MAX_SPEED + MIN_SPEED;
+        int vy = rand() % MAX_SPEED +  MIN_SPEED;
+        boids[i] = Boid(x, y, vx, vy);
     }
 }
 
 void checkBorders(Boid &boid) {
-    if (boid.x < 20)
+    if (boid.x < 0)
         boid.vx = boid.vx + TURNFACTOR;
-    if (boid.x > 480)
+    if (boid.x > SCREEN_WIDTH)
         boid.vx = boid.vx - TURNFACTOR;
-    if (boid.y > 480)
+    if (boid.y > SCREEN_HEIGHT)
         boid.vy = boid.vy - TURNFACTOR;
-    if (boid.y < 20)
+    if (boid.y < 0)
         boid.vy = boid.vy + TURNFACTOR;
 }
 
@@ -59,7 +67,7 @@ int main() {
     std::array<Boid, BOIDS_COUNT> boids;
     spawnBoids(boids);
 
-    RenderWindow window(VideoMode(500, 500), "Boids C++");
+    RenderWindow window(VideoMode(SCREEN_WIDTH, SCREEN_HEIGHT), "Boids C++");
     Event event;
 
     while(window.isOpen()) {
@@ -83,22 +91,17 @@ int main() {
                     auto &otherBoid = boids[j];
                     int distance_x = boid.x - otherBoid.x;
                     int distance_y = boid.y - otherBoid.y;
-
-                    if (std::abs(distance_x) < 40 && abs(distance_y) < 40) {
-                        int squared_distance = distance_x*distance_x + distance_y*distance_y;
-
-                        if (squared_distance <= 10*10) {                            
-                            // distance
+                    if (std::abs(distance_x) < MAX_RANGE && std::abs(distance_y) < MAX_RANGE) {
+                        if (std::abs(distance_x) <= MIN_RANGE && std::abs(distance_y) <= MIN_RANGE) {                            
                             close_dx += boid.x - otherBoid.x;
                             close_dy += boid.y - otherBoid.y;
-                        } else if(squared_distance < 40*40){
+                        } else {
                             // pos
                             avg_x += otherBoid.x;
                             avg_y += otherBoid.y;
                             // vel
                             avg_vx += otherBoid.vx;
                             avg_vy += otherBoid.vy;
-
                             flock_boids += 1;
                         }
                     }
@@ -122,8 +125,6 @@ int main() {
             boid.vx = boid.vx + (close_dx*AVOID_FACTOR);
             boid.vy = boid.vy + (close_dy*AVOID_FACTOR);
 
-            checkBorders(boid);
-
             float speed = sqrt(boid.vx*boid.vx + boid.vy*boid.vy);
             if (speed < 1) {
                 boid.vx = (boid.vx/speed)*1;
@@ -134,6 +135,8 @@ int main() {
                 boid.vx = (boid.vx/speed)*6;
                 boid.vy = (boid.vy/speed)*6;
             }
+
+            checkBorders(boid);
 
             boid.x = boid.x + boid.vx;
             boid.y = boid.y + boid.vy;
@@ -146,10 +149,9 @@ int main() {
 
         for(auto &boid : boids) {
             window.draw(boid.shape);
-            std::cout << boid.vx << " " << boid.vy << "\n";
         }
+
         window.setVerticalSyncEnabled(true);
-        //std::this_thread::sleep_for(std::chrono::seconds(1));
         window.display();
     }
 }
