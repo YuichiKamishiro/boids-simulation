@@ -41,11 +41,14 @@ struct Boid {
 
 void spawnBoids(std::array<Boid, kBoidsCount> &boids) {
     for(auto &boid : boids) {
+        int vx_sign = rand() % 2 == 0 ? 1 : -1;
+        int vy_sign = rand() % 2 == 0 ? 1 : -1;
+
         boid = Boid {
             rand() % SCREEN_WIDTH + 0, 
             rand() % SCREEN_HEIGHT + 0,
-            rand() % kMaxSpeed + kMinSpeed,
-            rand() % kMaxSpeed +  kMinSpeed,
+            vx_sign * (rand() % (kMaxSpeed - kMinSpeed) + kMinSpeed),
+            vy_sign * (rand() % (kMaxSpeed - kMinSpeed) + kMinSpeed),
         };
     }
 }
@@ -131,14 +134,14 @@ int main() {
             boid.vy = boid.vy + (close_dy*kAvoidFactor);
 
             float speed = sqrt(pow(boid.vx, 2) + pow(boid.vy, 2));
-            if (speed < 1) {
-                boid.vx = (boid.vx/speed)*1;
-                boid.vy = (boid.vy/speed)*1;
+            if (speed < kMinSpeed) {
+                boid.vx = (boid.vx/speed)*kMinSpeed;
+                boid.vy = (boid.vy/speed)*kMinSpeed;
             }
 
-            if (speed > 6) {
-                boid.vx = (boid.vx/speed)*6;
-                boid.vy = (boid.vy/speed)*6;
+            if (speed > kMaxSpeed) {
+                boid.vx = (boid.vx/speed)*kMaxSpeed;
+                boid.vy = (boid.vy/speed)*kMaxSpeed;
             }
 
             checkBorders(boid);
